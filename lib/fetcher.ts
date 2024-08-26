@@ -1,5 +1,6 @@
-export const fetcher = (...args: any[]) =>
-  fetch(...args, {
+export const fetcher = (url: string) =>
+  fetch(url, {
+    method: "GET",
     headers: {
       "Content-Type": "application/json",
       Authorization:
