@@ -1,113 +1,172 @@
-import Image from "next/image";
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { fetcher, requestURL } from "@/lib/fetcher";
+import useSWR, { useSWRConfig } from "swr";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import { Article } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/use-toast";
+import { url } from "inspector";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const FormSchema = z.object({
+  url: z
+    .string()
+    .startsWith("http", {
+      message: "请输入以http开头的链接地址",
+    })
+    .url({
+      message: "请输入有效的URL地址",
+    }),
+});
 
 export default function Home() {
+  const router = useRouter();
+
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const { data, error, isLoading, mutate } = useSWR(
+    requestURL.articles + "?filter=%7B%7D",
+    fetcher
+  );
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      url: "",
+    },
+  });
+
+  const create = async (data: string) => {
+    try {
+      const resp = await fetch(requestURL.create, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer app-oUS0QYkC8X7aXSJVYNARZYQT",
+        },
+        body: JSON.stringify({
+          inputs: { URL: data },
+          response_mode: "blocking",
+          user: "abc-123",
+        }),
+      });
+      if (!resp.ok) {
+        toast({
+          title: "URL地址数据获取异常",
+          description: `地址：${data} 的内容无法正常获取，请稍后重试。`,
+        });
+      }
+      await resp.json();
+      form.reset();
+      mutate();
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  function onSubmit(data: z.infer<typeof FormSchema>) {
+    setSubmitLoading(true);
+    create(data.url);
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="flex flex-col items-center p-8 gap-8">
+      <div className="flex w-full max-w-xl">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-row space-x-4 w-full"
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+            <FormField
+              control={form.control}
+              name="url"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Input
+                      placeholder="请输入需要添加内容的链接地址"
+                      {...field}
+                      disabled={submitLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </a>
+            <Button type="submit" disabled={submitLoading}>
+              <Loader2
+                className={`mr-2 h-4 w-4 animate-spin ${
+                  !submitLoading ? "hidden" : "block"
+                }`}
+              />
+              {!submitLoading ? "新增" : "耐心等待"}
+            </Button>
+          </form>
+        </Form>
+      </div>
+      {!data && isLoading ? (
+        <div className="grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-2">
+          <Skeleton className="h-[128px] w-auto rounded-xl" />
+          <Skeleton className="h-[128px] w-auto rounded-xl" />
         </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+      ) : !data || !data.data || data.data.length <= 0 ? (
+        <div>暂无内容</div>
+      ) : (
+        <>
+          <div className="items-center font-bold text-3xl">文档列表</div>
+          <div className="flex-1 grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-2">
+            {data.data.map((article: Article) => (
+              <Card
+                className="w-auto h-auto dark:hover:bg-slate-900 hover:bg-slate-100 hover:cursor-pointer"
+                key={article.id}
+                onClick={() => router.push(`/article/${article.id}`)}
+              >
+                <CardHeader>
+                  <p className="font-bold text-xl">{article.title} →</p>
+                </CardHeader>
+                <CardContent>
+                  <p className="line-clamp-2 overflow-hidden text-ellipsis">
+                    {article.content}
+                  </p>
+                </CardContent>
+                {article.tags.length > 1 ? (
+                  <CardFooter>
+                    <div className="flex items-center gap-2">
+                      {article.tags.split(",").map((tag: string) => (
+                        <Badge variant="secondary" key={tag}>
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardFooter>
+                ) : null}
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
     </main>
   );
 }
