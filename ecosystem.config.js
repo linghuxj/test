@@ -1,8 +1,3 @@
-const { exec } = require("child_process");
-const { ar } = require("date-fns/locale");
-const { watch } = require("fs");
-const { env } = require("process");
-
 module.exports = {
   apps: [
     {
